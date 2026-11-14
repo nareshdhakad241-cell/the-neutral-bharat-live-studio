@@ -80,8 +80,17 @@ public class StreamService extends Service {
                 activeSessionId = runningSession.getSessionId();
                 publishStatus("FFmpeg सत्र बनाया गया (ID " + activeSessionId + ")। कनेक्शन परिणाम की प्रतीक्षा है...");
             } catch (Throwable error) {
-                String message = error.getClass().getSimpleName();
-                try { publishStatus("स्ट्रीम शुरू नहीं हुई: " + message + ". ऐप की स्थिति/अनुमतियाँ जाँचें।"); } catch (Throwable ignored) {}
+                StringBuilder details = new StringBuilder(error.getClass().getSimpleName());
+                if (error.getMessage() != null && !error.getMessage().trim().isEmpty()) {
+                    details.append(": ").append(error.getMessage());
+                }
+                Throwable cause = error.getCause();
+                if (cause != null && cause != error) {
+                    details.append(" | कारण: ").append(cause.getClass().getSimpleName());
+                    if (cause.getMessage() != null) details.append(": ").append(cause.getMessage());
+                }
+                String message = details.toString();
+                try { publishStatus("स्ट्रीम शुरू नहीं हुई: " + message); } catch (Throwable ignored) {}
                 stopForeground(false);
                 stopSelf();
                 return START_NOT_STICKY;
