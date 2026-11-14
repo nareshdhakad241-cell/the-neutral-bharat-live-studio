@@ -50,7 +50,7 @@ public class StreamService extends Service {
                 "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
                 "-f", "flv", url
             };
-            FFmpegKit.executeWithArgumentsAsync(args, session -> {
+            activeSessionId = FFmpegKit.executeWithArgumentsAsync(args, session -> {
                 activeSessionId = -1;
                 int code = session.getReturnCode() == null ? -1 : session.getReturnCode().getValue();
                 updateNotification(code == 0 ? "लाइव समाप्त" : "लाइव रुक गया — ऐप खोलकर दोबारा प्रयास करें");
