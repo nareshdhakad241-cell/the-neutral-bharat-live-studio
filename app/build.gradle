@@ -1,0 +1,27 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.neutralbharat.livestudio'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.neutralbharat.livestudio'
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // FFmpegKit is archived upstream; this dependency may need a maintained
+    // replacement if the Maven artifact is no longer available.
+    implementation 'com.arthenica:ffmpeg-kit-full:6.0-2'
+}
