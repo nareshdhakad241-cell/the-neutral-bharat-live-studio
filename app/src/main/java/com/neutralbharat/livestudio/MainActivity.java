@@ -94,9 +94,9 @@ public class MainActivity extends Activity {
 
         start.setOnClickListener(v -> startStream());
         stop.setOnClickListener(v -> {
-            Intent stop = new Intent(this, StreamService.class);
-            stop.setAction(StreamService.ACTION_STOP);
-            startService(stop);
+            Intent stopIntent = new Intent(this, StreamService.class);
+            stopIntent.setAction(StreamService.ACTION_STOP);
+            startService(stopIntent);
             Toast.makeText(this, "लाइव बंद करने का अनुरोध भेजा गया", Toast.LENGTH_SHORT).show();
         });
         setContentView(root);
