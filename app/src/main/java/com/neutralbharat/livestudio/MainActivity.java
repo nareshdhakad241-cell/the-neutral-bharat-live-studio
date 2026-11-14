@@ -3,6 +3,9 @@ package com.neutralbharat.livestudio;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -25,6 +28,13 @@ public class MainActivity extends Activity {
     private static final int ASK_NOTIFICATION = 102;
     private EditText keyInput;
     private TextView fileLabel;
+    private TextView statusLabel;
+    private boolean receiverRegistered = false;
+    private final BroadcastReceiver statusReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (intent != null) showStatus(intent.getStringExtra(StreamService.EXTRA_STATUS));
+        }
+    };
     private File selectedVideo;
 
     @Override public void onCreate(Bundle state) {
@@ -86,6 +96,19 @@ public class MainActivity extends Activity {
         stop.setText("■  LIVE बंद करें");
         root.addView(stop);
 
+        TextView statusTitle = new TextView(this);
+        statusTitle.setText("लाइव की स्थिति");
+        statusTitle.setTextSize(17);
+        statusTitle.setTextColor(0xFF102A43);
+        statusTitle.setPadding(0, 18, 0, 4);
+        root.addView(statusTitle);
+        statusLabel = new TextView(this);
+        statusLabel.setText("अभी स्ट्रीम शुरू नहीं हुई है।");
+        statusLabel.setTextSize(14);
+        statusLabel.setTextColor(0xFF334E68);
+        statusLabel.setPadding(0, 4, 0, 12);
+        root.addView(statusLabel);
+
         TextView note = new TextView(this);
         note.setText("\nज़रूरी: फोन चालू, चार्जिंग और स्थिर इंटरनेट पर रखें। Android की बैटरी/बैकग्राउंड सीमाएँ, नेटवर्क या YouTube की समस्या से लाइव रुक सकता है। 24×7 चलने की गारंटी नहीं है। Stream Key किसी से साझा न करें।");
         note.setTextSize(13);
@@ -100,6 +123,27 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "लाइव बंद करने का अनुरोध भेजा गया", Toast.LENGTH_SHORT).show();
         });
         setContentView(root);
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        IntentFilter filter = new IntentFilter(StreamService.ACTION_STATUS);
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(statusReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        else registerReceiver(statusReceiver, filter);
+        receiverRegistered = true;
+        showStatus(getSharedPreferences(StreamService.PREFS, MODE_PRIVATE).getString(StreamService.PREF_STATUS, "अभी स्ट्रीम शुरू नहीं हुई है।"));
+    }
+
+    @Override protected void onPause() {
+        if (receiverRegistered) {
+            unregisterReceiver(statusReceiver);
+            receiverRegistered = false;
+        }
+        super.onPause();
+    }
+
+    private void showStatus(String message) {
+        if (statusLabel != null && message != null && !message.trim().isEmpty()) statusLabel.setText(message);
     }
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -149,6 +193,7 @@ public class MainActivity extends Activity {
         intent.putExtra(StreamService.EXTRA_KEY, key);
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent); else startService(intent);
         keyInput.setText("");
+        showStatus("ऐप ने अनुरोध भेजा है। FFmpeg की पुष्टि का इंतज़ार करें...");
         Toast.makeText(this, "लाइव शुरू करने का अनुरोध भेजा गया", Toast.LENGTH_SHORT).show();
     }
 }
