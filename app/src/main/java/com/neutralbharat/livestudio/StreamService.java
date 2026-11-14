@@ -57,7 +57,7 @@ public class StreamService extends Service {
                 String[] args = new String[]{
                     "-hide_banner", "-loglevel", "warning",
                     "-re", "-stream_loop", "-1", "-i", file,
-                    "-c:v", "libx264", "-preset", "veryfast",
+                    "-c:v", "libx264", 
                     "-b:v", "2500k", "-maxrate", "2500k", "-bufsize", "5000k",
                     "-pix_fmt", "yuv420p", "-g", "60",
                     "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
