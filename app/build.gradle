@@ -24,4 +24,6 @@ dependencies {
     // FFmpegKit is archived upstream; this dependency may need a maintained
     // replacement if the Maven artifact is no longer available.
     implementation 'dev.ffmpegkit-maintained:ffmpeg-kit-full:8.1.7'
+    // FFmpegKit references this Android stack-trace helper at runtime.
+    implementation 'com.arthenica:smart-exception-java:0.2.1'
 }
