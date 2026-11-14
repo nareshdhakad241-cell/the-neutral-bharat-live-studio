@@ -11,6 +11,7 @@ import android.os.IBinder;
 
 import com.arthenica.ffmpegkit.FFmpegKit;
 import com.arthenica.ffmpegkit.FFmpegSession;
+import com.arthenica.ffmpegkit.FFmpegKitConfig;
 
 public class StreamService extends Service {
     public static final String ACTION_START = "com.neutralbharat.livestudio.START";
@@ -55,7 +56,7 @@ public class StreamService extends Service {
                 }
                 String url = "rtmp://a.rtmp.youtube.com/live2/" + key;
                 String[] args = new String[]{
-                    "-hide_banner", "-loglevel", "warning",
+                    "-hide_banner", "-loglevel", "info",
                     "-re", "-stream_loop", "-1", "-i", file,
                     "-c:v", "h264_mediacodec", 
                     "-b:v", "2500k", "-maxrate", "2500k", "-bufsize", "5000k",
@@ -63,7 +64,21 @@ public class StreamService extends Service {
                     "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
                     "-f", "flv", url
                 };
-                publishStatus("FFmpeg शुरू किया जा रहा है। अभी YouTube कनेक्शन की पुष्टि नहीं हुई है...");
+                publishStatus("FFmpeg शुरू किया जा रहा है। अब लाइव लॉग की जाँच होगी...");
+                FFmpegKitConfig.enableLogCallback(log -> {
+                    String message = log.getMessage();
+                    if (message == null || message.trim().isEmpty()) return;
+                    String lower = message.toLowerCase(java.util.Locale.ROOT);
+                    if (lower.contains("error") || lower.contains("failed") ||
+                        lower.contains("opening connection") || lower.contains("connected") ||
+                        lower.contains("output #") || lower.contains("stream mapping") ||
+                        lower.contains("frame=") || lower.contains("invalid") ||
+                        lower.contains("encoder")) {
+                        String safe = message.replace(key, "[Stream Key छिपाई गई]").trim();
+                        if (safe.length() > 280) safe = safe.substring(safe.length() - 280);
+                        publishStatus("लाइव जाँच: " + safe);
+                    }
+                });
                 FFmpegSession runningSession = FFmpegKit.executeWithArgumentsAsync(args, session -> {
                     activeSessionId = -1;
                     int code = session.getReturnCode() == null ? -1 : session.getReturnCode().getValue();
