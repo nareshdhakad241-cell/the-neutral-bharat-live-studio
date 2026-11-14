@@ -17,6 +17,10 @@ public class StreamService extends Service {
     public static final String ACTION_STOP = "com.neutralbharat.livestudio.STOP";
     public static final String EXTRA_FILE = "video_file";
     public static final String EXTRA_KEY = "stream_key";
+    public static final String ACTION_STATUS = "com.neutralbharat.livestudio.STATUS";
+    public static final String EXTRA_STATUS = "status_text";
+    public static final String PREFS = "live_stream_status";
+    public static final String PREF_STATUS = "last_status";
     private static final String CHANNEL = "live_stream_channel";
     private static long activeSessionId = -1;
 
@@ -30,6 +34,7 @@ public class StreamService extends Service {
         if (ACTION_STOP.equals(intent.getAction())) {
             if (activeSessionId != -1) FFmpegKit.cancel(activeSessionId);
             activeSessionId = -1;
+            publishStatus("लाइव बंद कर दी गई।");
             stopForeground(true);
             stopSelf();
             return START_NOT_STICKY;
@@ -37,12 +42,13 @@ public class StreamService extends Service {
         if (ACTION_START.equals(intent.getAction())) {
             String file = intent.getStringExtra(EXTRA_FILE);
             String key = intent.getStringExtra(EXTRA_KEY);
-            if (file == null || key == null) { stopSelf(); return START_NOT_STICKY; }
+            if (file == null || key == null) { publishStatus("त्रुटि: वीडियो फ़ाइल या Stream Key नहीं मिली।"); stopSelf(); return START_NOT_STICKY; }
             try {
                 startForeground(7, buildNotification("स्ट्रीमिंग सेवा शुरू हो रही है"));
+                publishStatus("Android स्ट्रीमिंग सेवा शुरू हुई। वीडियो जाँची जा रही है...");
                 java.io.File video = new java.io.File(file);
                 if (!video.exists() || !video.canRead()) {
-                    updateNotification("चुनी गई वीडियो फ़ाइल पढ़ी नहीं जा रही");
+                    publishStatus("त्रुटि: चुनी गई वीडियो फ़ाइल पढ़ी नहीं जा रही। वीडियो दोबारा चुनें।");
                     stopForeground(false);
                     stopSelf();
                     return START_NOT_STICKY;
@@ -57,18 +63,25 @@ public class StreamService extends Service {
                     "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
                     "-f", "flv", url
                 };
+                publishStatus("FFmpeg शुरू किया जा रहा है। अभी YouTube कनेक्शन की पुष्टि नहीं हुई है...");
                 FFmpegSession runningSession = FFmpegKit.executeWithArgumentsAsync(args, session -> {
                     activeSessionId = -1;
                     int code = session.getReturnCode() == null ? -1 : session.getReturnCode().getValue();
-                    updateNotification(code == 0 ? "स्ट्रीम समाप्त हुई" : "स्ट्रीम विफल हुई; ऐप खोलकर दोबारा प्रयास करें");
+                    String output = session.getOutput();
+                    if (output == null) output = "";
+                    output = output.replace(key, "[Stream Key छिपाई गई]");
+                    if (output.length() > 700) output = output.substring(output.length() - 700);
+                    String result = code == 0 ? "FFmpeg प्रक्रिया समाप्त हुई (कोड 0)।" : "FFmpeg विफल हुआ (कोड " + code + ")।";
+                    if (!output.trim().isEmpty()) result += "\\nलॉग: " + output.trim();
+                    publishStatus(result);
                     stopForeground(false);
                     stopSelf();
                 });
                 activeSessionId = runningSession.getSessionId();
-                updateNotification("स्ट्रीमिंग प्रक्रिया चालू है");
+                publishStatus("FFmpeg सत्र बनाया गया (ID " + activeSessionId + ")। कनेक्शन परिणाम की प्रतीक्षा है...");
             } catch (Throwable error) {
                 String message = error.getClass().getSimpleName();
-                try { updateNotification("स्ट्रीम शुरू नहीं हुई: " + message); } catch (Throwable ignored) {}
+                try { publishStatus("स्ट्रीम शुरू नहीं हुई: " + message + ". ऐप की स्थिति/अनुमतियाँ जाँचें।"); } catch (Throwable ignored) {}
                 stopForeground(false);
                 stopSelf();
                 return START_NOT_STICKY;
@@ -103,6 +116,15 @@ public class StreamService extends Service {
     private void updateNotification(String text) {
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         nm.notify(7, buildNotification(text));
+    }
+
+    private void publishStatus(String text) {
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(PREF_STATUS, text).apply();
+        Intent status = new Intent(ACTION_STATUS);
+        status.setPackage(getPackageName());
+        status.putExtra(EXTRA_STATUS, text);
+        sendBroadcast(status);
+        updateNotification(text.length() > 180 ? text.substring(0, 180) : text);
     }
 
     @Override public IBinder onBind(Intent intent) { return null; }
