@@ -11,7 +11,6 @@ import android.os.IBinder;
 
 import com.arthenica.ffmpegkit.FFmpegKit;
 import com.arthenica.ffmpegkit.FFmpegSession;
-import com.arthenica.ffmpegkit.ReturnCode;
 
 public class StreamService extends Service {
     public static final String ACTION_START = "com.neutralbharat.livestudio.START";
@@ -39,25 +38,41 @@ public class StreamService extends Service {
             String file = intent.getStringExtra(EXTRA_FILE);
             String key = intent.getStringExtra(EXTRA_KEY);
             if (file == null || key == null) { stopSelf(); return START_NOT_STICKY; }
-            startForeground(7, buildNotification("YouTube लाइव तैयार हो रहा है"));
-            String url = "rtmp://a.rtmp.youtube.com/live2/" + key;
-            String[] args = new String[]{
-                "-hide_banner", "-loglevel", "warning",
-                "-re", "-stream_loop", "-1", "-i", file,
-                "-c:v", "libx264", "-preset", "veryfast",
-                "-b:v", "2500k", "-maxrate", "2500k", "-bufsize", "5000k",
-                "-pix_fmt", "yuv420p", "-g", "60",
-                "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
-                "-f", "flv", url
-            };
-            FFmpegSession runningSession = FFmpegKit.executeWithArgumentsAsync(args, session -> {
-                activeSessionId = -1;
-                int code = session.getReturnCode() == null ? -1 : session.getReturnCode().getValue();
-                updateNotification(code == 0 ? "लाइव समाप्त" : "लाइव रुक गया — ऐप खोलकर दोबारा प्रयास करें");
+            try {
+                startForeground(7, buildNotification("स्ट्रीमिंग सेवा शुरू हो रही है"));
+                java.io.File video = new java.io.File(file);
+                if (!video.exists() || !video.canRead()) {
+                    updateNotification("चुनी गई वीडियो फ़ाइल पढ़ी नहीं जा रही");
+                    stopForeground(false);
+                    stopSelf();
+                    return START_NOT_STICKY;
+                }
+                String url = "rtmp://a.rtmp.youtube.com/live2/" + key;
+                String[] args = new String[]{
+                    "-hide_banner", "-loglevel", "warning",
+                    "-re", "-stream_loop", "-1", "-i", file,
+                    "-c:v", "libx264", "-preset", "veryfast",
+                    "-b:v", "2500k", "-maxrate", "2500k", "-bufsize", "5000k",
+                    "-pix_fmt", "yuv420p", "-g", "60",
+                    "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
+                    "-f", "flv", url
+                };
+                FFmpegSession runningSession = FFmpegKit.executeWithArgumentsAsync(args, session -> {
+                    activeSessionId = -1;
+                    int code = session.getReturnCode() == null ? -1 : session.getReturnCode().getValue();
+                    updateNotification(code == 0 ? "स्ट्रीम समाप्त हुई" : "स्ट्रीम विफल हुई; ऐप खोलकर दोबारा प्रयास करें");
+                    stopForeground(false);
+                    stopSelf();
+                });
+                activeSessionId = runningSession.getSessionId();
+                updateNotification("स्ट्रीमिंग प्रक्रिया चालू है");
+            } catch (Throwable error) {
+                String message = error.getClass().getSimpleName();
+                try { updateNotification("स्ट्रीम शुरू नहीं हुई: " + message); } catch (Throwable ignored) {}
                 stopForeground(false);
                 stopSelf();
-            });
-            activeSessionId = runningSession.getSessionId();
+                return START_NOT_STICKY;
+            }
         }
         return START_NOT_STICKY;
     }
