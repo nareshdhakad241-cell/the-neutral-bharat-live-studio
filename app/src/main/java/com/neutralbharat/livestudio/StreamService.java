@@ -24,7 +24,7 @@ public class StreamService extends Service {
     public static final String PREFS = "live_stream_status";
     public static final String PREF_STATUS = "last_status";
     private static final String CHANNEL = "live_stream_channel";
-    private static long activeSessionId = -1;
+    private static volatile long activeSessionId = -1;
     private static volatile boolean sessionStartingOrRunning = false;
     private PowerManager.WakeLock wakeLock;
 
@@ -110,15 +110,17 @@ public class StreamService extends Service {
                     String output = session.getOutput();
                     if (output == null) output = "";
                     output = output.replace(key, "[Stream Key छिपाई गई]");
-                    if (output.length() > 3000) output = output.substring(output.length() - 3000);
+                    if (output.length() > 5000) output = output.substring(output.length() - 5000);
                     String result = code == 0 ? "FFmpeg प्रक्रिया समाप्त हुई (कोड 0)।" : "FFmpeg विफल हुआ (कोड " + code + ")।";
                     if (!output.trim().isEmpty()) result += "\nलॉग: " + output.trim();
                     publishStatus(result);
                     stopForeground(false);
                     stopSelf();
                 });
-                activeSessionId = runningSession.getSessionId();
-                publishStatus("FFmpeg सत्र बनाया गया (ID " + activeSessionId + ")। YouTube RTMP कनेक्शन परिणाम की प्रतीक्षा है...");
+                long newSessionId = runningSession.getSessionId();
+                // The async callback can finish very quickly; do not resurrect a completed session ID.
+                if (sessionStartingOrRunning) activeSessionId = newSessionId;
+                publishStatus("FFmpeg सत्र बनाया गया (ID " + newSessionId + ")। YouTube RTMP कनेक्शन परिणाम की प्रतीक्षा है...");
             } catch (Throwable error) {
                 StringBuilder details = new StringBuilder(error.getClass().getSimpleName());
                 if (error.getMessage() != null && !error.getMessage().trim().isEmpty()) {
@@ -149,6 +151,13 @@ public class StreamService extends Service {
     }
 
     @Override public void onDestroy() {
+        // If Android destroys the service unexpectedly, do not leave an orphan FFmpeg job running.
+        long sessionId = activeSessionId;
+        if (sessionId != -1 && sessionStartingOrRunning) {
+            activeSessionId = -1;
+            sessionStartingOrRunning = false;
+            try { FFmpegKit.cancel(sessionId); } catch (Throwable ignored) {}
+        }
         releaseCpuLock();
         super.onDestroy();
     }
