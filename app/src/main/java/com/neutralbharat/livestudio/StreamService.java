@@ -54,8 +54,8 @@ public class StreamService extends Service {
                     stopSelf();
                     return START_NOT_STICKY;
                 }
-                // Use YouTube's encrypted RTMPS ingest on TCP port 443.
-                String url = "rtmps://a.rtmps.youtube.com:443/live2/" + key;
+                // Use YouTube standard RTMP ingest; this FFmpeg build does not include the RTMPS protocol.
+                String url = "rtmp://a.rtmp.youtube.com/live2/" + key;
                 String[] args = new String[]{
                     "-hide_banner", "-loglevel", "info",
                     "-re", "-stream_loop", "-1", "-i", file,
@@ -67,7 +67,7 @@ public class StreamService extends Service {
                     "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
                     "-f", "flv", url
                 };
-                publishStatus("FFmpeg शुरू किया जा रहा है। अब सुरक्षित RTMPS कनेक्शन की जाँच होगी...");
+                publishStatus("FFmpeg शुरू किया जा रहा है। अब YouTube RTMP कनेक्शन की जाँच होगी...");
                 FFmpegKitConfig.enableLogCallback(log -> {
                     String message = log.getMessage();
                     if (message == null || message.trim().isEmpty()) return;
@@ -99,7 +99,7 @@ public class StreamService extends Service {
                     stopSelf();
                 });
                 activeSessionId = runningSession.getSessionId();
-                publishStatus("FFmpeg सत्र बनाया गया (ID " + activeSessionId + ")। RTMPS कनेक्शन परिणाम की प्रतीक्षा है...");
+                publishStatus("FFmpeg सत्र बनाया गया (ID " + activeSessionId + ")। YouTube RTMP कनेक्शन परिणाम की प्रतीक्षा है...");
             } catch (Throwable error) {
                 StringBuilder details = new StringBuilder(error.getClass().getSimpleName());
                 if (error.getMessage() != null && !error.getMessage().trim().isEmpty()) {
