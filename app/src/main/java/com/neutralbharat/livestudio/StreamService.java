@@ -62,9 +62,9 @@ public class StreamService extends Service {
                     // Downscale 1080p sources to 720p/24fps to help mid-range phones keep up in real time.
                     "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,fps=24",
                     "-c:v", "h264_mediacodec",
-                    "-b:v", "1800k", "-maxrate", "1800k", "-bufsize", "3600k",
+                    "-b:v", "1000k", "-maxrate", "1000k", "-bufsize", "2000k",
                     "-pix_fmt", "yuv420p", "-r", "24", "-g", "48",
-                    "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
+                    "-c:a", "aac", "-b:a", "96k", "-ar", "44100",
                     "-f", "flv", url
                 };
                 publishStatus("FFmpeg शुरू किया जा रहा है। अब YouTube RTMP कनेक्शन की जाँच होगी...");
@@ -73,7 +73,7 @@ public class StreamService extends Service {
                     if (message == null || message.trim().isEmpty()) return;
                     String lower = message.toLowerCase(java.util.Locale.ROOT);
                     if (lower.contains("error") || lower.contains("failed") ||
-                        lower.contains("opening connection") || lower.contains("connected") ||
+                        lower.contains("opening connection") || lower.contains("connected") || lower.contains("connection") || lower.contains("server") ||
                         lower.contains("output #") || lower.contains("stream mapping") ||
                         lower.contains("frame=") || lower.contains("invalid") ||
                         lower.contains("encoder") || lower.contains("tls") ||
