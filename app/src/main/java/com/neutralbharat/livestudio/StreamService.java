@@ -93,7 +93,7 @@ public class StreamService extends Service {
                     output = output.replace(key, "[Stream Key छिपाई गई]");
                     if (output.length() > 700) output = output.substring(output.length() - 700);
                     String result = code == 0 ? "FFmpeg प्रक्रिया समाप्त हुई (कोड 0)।" : "FFmpeg विफल हुआ (कोड " + code + ")।";
-                    if (!output.trim().isEmpty()) result += "\\nलॉग: " + output.trim();
+                    if (!output.trim().isEmpty()) result += "\nलॉग: " + output.trim();
                     publishStatus(result);
                     stopForeground(false);
                     stopSelf();
