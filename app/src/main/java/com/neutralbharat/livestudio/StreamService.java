@@ -8,6 +8,7 @@ import android.app.Service;
 import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.PowerManager;
 
 import com.arthenica.ffmpegkit.FFmpegKit;
 import com.arthenica.ffmpegkit.FFmpegSession;
@@ -24,6 +25,8 @@ public class StreamService extends Service {
     public static final String PREF_STATUS = "last_status";
     private static final String CHANNEL = "live_stream_channel";
     private static long activeSessionId = -1;
+    private static volatile boolean sessionStartingOrRunning = false;
+    private PowerManager.WakeLock wakeLock;
 
     @Override public void onCreate() {
         super.onCreate();
@@ -33,22 +36,37 @@ public class StreamService extends Service {
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null) { stopSelf(); return START_NOT_STICKY; }
         if (ACTION_STOP.equals(intent.getAction())) {
+            sessionStartingOrRunning = false;
             if (activeSessionId != -1) FFmpegKit.cancel(activeSessionId);
             activeSessionId = -1;
+            releaseCpuLock();
             publishStatus("लाइव बंद कर दी गई।");
             stopForeground(true);
             stopSelf();
             return START_NOT_STICKY;
         }
         if (ACTION_START.equals(intent.getAction())) {
+            if (sessionStartingOrRunning) {
+                publishStatus("लाइव पहले से शुरू है। दूसरी स्ट्रीम शुरू नहीं की गई।");
+                return START_NOT_STICKY;
+            }
+            sessionStartingOrRunning = true;
             String file = intent.getStringExtra(EXTRA_FILE);
             String key = intent.getStringExtra(EXTRA_KEY);
-            if (file == null || key == null) { publishStatus("त्रुटि: वीडियो फ़ाइल या Stream Key नहीं मिली।"); stopSelf(); return START_NOT_STICKY; }
+            if (file == null || key == null) { sessionStartingOrRunning = false; publishStatus("त्रुटि: वीडियो फ़ाइल या Stream Key नहीं मिली।"); stopSelf(); return START_NOT_STICKY; }
             try {
                 startForeground(7, buildNotification("स्ट्रीमिंग सेवा शुरू हो रही है"));
+                PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+                if (pm != null) {
+                    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, getPackageName() + ":LiveStream");
+                    wakeLock.setReferenceCounted(false);
+                    wakeLock.acquire();
+                }
                 publishStatus("Android स्ट्रीमिंग सेवा शुरू हुई। वीडियो जाँची जा रही है...");
                 java.io.File video = new java.io.File(file);
                 if (!video.exists() || !video.canRead()) {
+                    sessionStartingOrRunning = false;
+                    releaseCpuLock();
                     publishStatus("त्रुटि: चुनी गई वीडियो फ़ाइल पढ़ी नहीं जा रही। वीडियो दोबारा चुनें।");
                     stopForeground(false);
                     stopSelf();
@@ -73,15 +91,12 @@ public class StreamService extends Service {
                     if (message == null || message.trim().isEmpty()) return;
                     String lower = message.toLowerCase(java.util.Locale.ROOT);
                     if (lower.contains("error") || lower.contains("failed") ||
-                        lower.contains("opening connection") || lower.contains("connected") || lower.contains("connection") || lower.contains("server") ||
+                        lower.contains("connection refused") || lower.contains("connected") ||
                         lower.contains("output #") || lower.contains("stream mapping") ||
                         lower.contains("rtmp") || lower.contains("tcp") || lower.contains("publish") ||
-                        lower.contains("netstream") || lower.contains("write") || lower.contains("connected") ||
-                        lower.contains("invalid") ||
-                        lower.contains("encoder") || lower.contains("tls") ||
-                        lower.contains("handshake") || lower.contains("rtmps") ||
-                        lower.contains("write error") || lower.contains("io error") ||
-                        lower.contains("audio:")) {
+                        lower.contains("netstream") || lower.contains("invalid") ||
+                        lower.contains("encoder") || lower.contains("handshake") ||
+                        lower.contains("io error")) {
                         String safe = message.replace(key, "[Stream Key छिपाई गई]").trim();
                         if (safe.length() > 280) safe = safe.substring(safe.length() - 280);
                         publishStatus("लाइव जाँच: " + safe);
@@ -89,6 +104,8 @@ public class StreamService extends Service {
                 });
                 FFmpegSession runningSession = FFmpegKit.executeWithArgumentsAsync(args, session -> {
                     activeSessionId = -1;
+                    sessionStartingOrRunning = false;
+                    releaseCpuLock();
                     int code = session.getReturnCode() == null ? -1 : session.getReturnCode().getValue();
                     String output = session.getOutput();
                     if (output == null) output = "";
@@ -112,6 +129,8 @@ public class StreamService extends Service {
                     details.append(" | कारण: ").append(cause.getClass().getSimpleName());
                     if (cause.getMessage() != null) details.append(": ").append(cause.getMessage());
                 }
+                sessionStartingOrRunning = false;
+                releaseCpuLock();
                 String message = details.toString();
                 try { publishStatus("स्ट्रीम शुरू नहीं हुई: " + message); } catch (Throwable ignored) {}
                 stopForeground(false);
@@ -120,6 +139,18 @@ public class StreamService extends Service {
             }
         }
         return START_NOT_STICKY;
+    }
+
+    private void releaseCpuLock() {
+        try {
+            if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+        } catch (Throwable ignored) {}
+        wakeLock = null;
+    }
+
+    @Override public void onDestroy() {
+        releaseCpuLock();
+        super.onDestroy();
     }
 
     private void createChannel() {
