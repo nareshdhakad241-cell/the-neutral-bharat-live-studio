@@ -65,7 +65,7 @@ public class StreamService extends Service {
                     "-b:v", "1000k", "-maxrate", "1000k", "-bufsize", "2000k",
                     "-pix_fmt", "yuv420p", "-r", "24", "-g", "48",
                     "-c:a", "aac", "-b:a", "96k", "-ar", "44100",
-                    "-f", "flv", url
+                    "-f", "flv", "-rw_timeout", "20000000", url
                 };
                 publishStatus("FFmpeg शुरू किया जा रहा है। अब YouTube RTMP कनेक्शन की जाँच होगी...");
                 FFmpegKitConfig.enableLogCallback(log -> {
@@ -75,7 +75,9 @@ public class StreamService extends Service {
                     if (lower.contains("error") || lower.contains("failed") ||
                         lower.contains("opening connection") || lower.contains("connected") || lower.contains("connection") || lower.contains("server") ||
                         lower.contains("output #") || lower.contains("stream mapping") ||
-                        lower.contains("frame=") || lower.contains("invalid") ||
+                        lower.contains("rtmp") || lower.contains("tcp") || lower.contains("publish") ||
+                        lower.contains("netstream") || lower.contains("write") || lower.contains("connected") ||
+                        lower.contains("invalid") ||
                         lower.contains("encoder") || lower.contains("tls") ||
                         lower.contains("handshake") || lower.contains("rtmps") ||
                         lower.contains("write error") || lower.contains("io error") ||
