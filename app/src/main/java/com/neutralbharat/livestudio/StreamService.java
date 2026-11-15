@@ -59,9 +59,11 @@ public class StreamService extends Service {
                 String[] args = new String[]{
                     "-hide_banner", "-loglevel", "info",
                     "-re", "-stream_loop", "-1", "-i", file,
+                    // Downscale 1080p sources to 720p/24fps to help mid-range phones keep up in real time.
+                    "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,fps=24",
                     "-c:v", "h264_mediacodec",
-                    "-b:v", "2500k", "-maxrate", "2500k", "-bufsize", "5000k",
-                    "-pix_fmt", "yuv420p", "-g", "60",
+                    "-b:v", "1800k", "-maxrate", "1800k", "-bufsize", "3600k",
+                    "-pix_fmt", "yuv420p", "-r", "24", "-g", "48",
                     "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
                     "-f", "flv", url
                 };
@@ -75,7 +77,9 @@ public class StreamService extends Service {
                         lower.contains("output #") || lower.contains("stream mapping") ||
                         lower.contains("frame=") || lower.contains("invalid") ||
                         lower.contains("encoder") || lower.contains("tls") ||
-                        lower.contains("handshake")) {
+                        lower.contains("handshake") || lower.contains("rtmps") ||
+                        lower.contains("write error") || lower.contains("io error") ||
+                        lower.contains("audio:")) {
                         String safe = message.replace(key, "[Stream Key छिपाई गई]").trim();
                         if (safe.length() > 280) safe = safe.substring(safe.length() - 280);
                         publishStatus("लाइव जाँच: " + safe);
