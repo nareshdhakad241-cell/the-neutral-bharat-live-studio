@@ -75,7 +75,7 @@ public class StreamService extends Service {
                 // Use YouTube standard RTMP ingest; this FFmpeg build does not include the RTMPS protocol.
                 String url = "rtmp://a.rtmp.youtube.com/live2/" + key;
                 String[] args = new String[]{
-                    "-hide_banner", "-loglevel", "info",
+                    "-hide_banner", "-loglevel", "verbose",
                     "-re", "-stream_loop", "-1", "-i", file,
                     // Downscale 1080p sources to 720p/24fps to help mid-range phones keep up in real time.
                     "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,fps=24",
@@ -110,7 +110,7 @@ public class StreamService extends Service {
                     String output = session.getOutput();
                     if (output == null) output = "";
                     output = output.replace(key, "[Stream Key छिपाई गई]");
-                    if (output.length() > 700) output = output.substring(output.length() - 700);
+                    if (output.length() > 3000) output = output.substring(output.length() - 3000);
                     String result = code == 0 ? "FFmpeg प्रक्रिया समाप्त हुई (कोड 0)।" : "FFmpeg विफल हुआ (कोड " + code + ")।";
                     if (!output.trim().isEmpty()) result += "\nलॉग: " + output.trim();
                     publishStatus(result);
