@@ -72,8 +72,9 @@ public class StreamService extends Service {
                     stopSelf();
                     return START_NOT_STICKY;
                 }
-                // Use YouTube standard RTMP ingest; this FFmpeg build does not include the RTMPS protocol.
-                String url = "rtmp://a.rtmp.youtube.com/live2/" + key;
+                // Prefer YouTube's encrypted RTMPS ingest on port 443. FFmpegKit 8.1.9 full
+                // includes TLS support; YouTube recommends RTMPS for encoder ingest.
+                String url = "rtmps://a.rtmps.youtube.com:443/live2/" + key;
                 String[] args = new String[]{
                     "-hide_banner", "-loglevel", "verbose",
                     "-re", "-stream_loop", "-1", "-i", file,
