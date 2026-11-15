@@ -54,17 +54,18 @@ public class StreamService extends Service {
                     stopSelf();
                     return START_NOT_STICKY;
                 }
-                String url = "rtmp://a.rtmp.youtube.com/live2/" + key;
+                // Use YouTube's encrypted RTMPS ingest on TCP port 443.
+                String url = "rtmps://a.rtmps.youtube.com:443/live2/" + key;
                 String[] args = new String[]{
                     "-hide_banner", "-loglevel", "info",
                     "-re", "-stream_loop", "-1", "-i", file,
-                    "-c:v", "h264_mediacodec", 
+                    "-c:v", "h264_mediacodec",
                     "-b:v", "2500k", "-maxrate", "2500k", "-bufsize", "5000k",
                     "-pix_fmt", "yuv420p", "-g", "60",
                     "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
                     "-f", "flv", url
                 };
-                publishStatus("FFmpeg शुरू किया जा रहा है। अब लाइव लॉग की जाँच होगी...");
+                publishStatus("FFmpeg शुरू किया जा रहा है। अब सुरक्षित RTMPS कनेक्शन की जाँच होगी...");
                 FFmpegKitConfig.enableLogCallback(log -> {
                     String message = log.getMessage();
                     if (message == null || message.trim().isEmpty()) return;
@@ -73,7 +74,8 @@ public class StreamService extends Service {
                         lower.contains("opening connection") || lower.contains("connected") ||
                         lower.contains("output #") || lower.contains("stream mapping") ||
                         lower.contains("frame=") || lower.contains("invalid") ||
-                        lower.contains("encoder")) {
+                        lower.contains("encoder") || lower.contains("tls") ||
+                        lower.contains("handshake")) {
                         String safe = message.replace(key, "[Stream Key छिपाई गई]").trim();
                         if (safe.length() > 280) safe = safe.substring(safe.length() - 280);
                         publishStatus("लाइव जाँच: " + safe);
@@ -93,7 +95,7 @@ public class StreamService extends Service {
                     stopSelf();
                 });
                 activeSessionId = runningSession.getSessionId();
-                publishStatus("FFmpeg सत्र बनाया गया (ID " + activeSessionId + ")। कनेक्शन परिणाम की प्रतीक्षा है...");
+                publishStatus("FFmpeg सत्र बनाया गया (ID " + activeSessionId + ")। RTMPS कनेक्शन परिणाम की प्रतीक्षा है...");
             } catch (Throwable error) {
                 StringBuilder details = new StringBuilder(error.getClass().getSimpleName());
                 if (error.getMessage() != null && !error.getMessage().trim().isEmpty()) {
